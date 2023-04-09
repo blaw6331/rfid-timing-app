@@ -1,0 +1,39 @@
+{
+  "EventName": "TestEvent",
+  "LastHeartbeat": "2019-01-01T00:00:00.000Z",
+  "Participants": [
+    {
+      "NameFirst": "brady",
+      "NameLast": "lawson",
+      "Other": "Other info",
+      "Tags": ["1234", "Tag2"],
+      "BibNumber": "1",
+      "TagReads": [
+        { "Tag": "1234123412341234", "Time": "2019-01-01T00:00:00.000Z" },
+        { "Tag": "1234123412341234", "Time": "2019-01-01T00:00:00.000Z" },
+        { "Tag": "1234", "Time": "2023-04-09T07:38:26.732Z" },
+        { "Tag": "1234", "Time": "2023-04-09T07:43:22.201Z" },
+        { "Tag": "1234", "Time": "2023-04-09T07:43:31.089Z" },
+        { "Tag": "1234", "Time": "2023-04-09T07:46:45.229Z" },
+        { "Tag": "1234", "Time": "2023-04-09T07:46:49.430Z" }
+      ],
+      "startTime": "12",
+      "finishTime": "12",
+      "time": "12"
+    },
+    {
+      "NameFirst": "lawson",
+      "NameLast": "Doe",
+      "Other": "Other info",
+      "Tags": ["Tag1", "Tag2"],
+      "BibNumber": "1235",
+      "TagReads": [
+        { "Tag": "1234123412341234", "Time": "2019-01-01T00:00:00.000Z" },
+        { "Tag": "1234123412341234", "Time": "2019-01-01T00:00:00.000Z" }
+      ],
+      "startTime": "2019-01-01T00:00:00.000Z",
+      "finishTime": "2019-01-01T00:00:00.000Z",
+      "time": "9999"
+    }
+  ]
+}

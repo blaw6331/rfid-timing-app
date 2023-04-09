@@ -95,9 +95,13 @@
     }
   },
   "dependencies": {
+    "@cloudscape-design/components": "^3.0.240",
+    "@cloudscape-design/global-styles": "^1.0.8",
     "electron-debug": "^3.2.0",
     "electron-log": "^4.4.8",
     "electron-updater": "^5.3.0",
+    "express": "^4.18.2",
+    "express-xml-bodyparser": "^0.3.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.1"
