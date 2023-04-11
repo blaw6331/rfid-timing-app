@@ -354,6 +354,46 @@ ipcMain.on('edit-participants', (event, arg) => {
   });
 });
 
+ipcMain.on('create-race', (event, args) => {
+  const [raceName, numberOfPasses] = args;
+  console.log('creating race');
+  const raceJson = {
+    EventName: raceName,
+    LastHeartbeat: '2019-01-01T00:00:00.000Z',
+    Mode: 'nolaps',
+    laps: numberOfPasses,
+    Participants: [],
+  };
+
+  dialog
+    .showOpenDialog({
+      properties: ['openDirectory'],
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    })
+    .then((result) => {
+      console.log(result.filePaths[0]);
+      const filePath = `${result.filePaths[0]}/${raceName}.json`;
+      raceFilePath = filePath;
+      fs.writeFile(filePath, JSON.stringify(raceJson), 'utf-8', (error) => {
+        fs.readFile(filePath, 'utf8', (errror, newData) => {
+          if (errror) {
+            console.error(errror);
+          } else {
+            console.log(newData)
+            event.reply('json-loaded', newData);
+            mainWindow?.webContents.send('json-loaded', newData);
+          }
+        });
+      });
+      // fs.readFile(result.filePaths[0], 'utf8', (err, data) => {
+      //   // eslint-disable-next-line prefer-destructuring
+      //   raceFilePath = result.filePaths[0];
+      //   event.reply('json-loaded', reply(data));
+      // });
+    })
+    .catch((err) => console.log(err));
+});
+
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
   sourceMapSupport.install();
