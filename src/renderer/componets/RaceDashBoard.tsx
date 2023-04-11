@@ -13,6 +13,7 @@ import {
   Grid,
 } from '@cloudscape-design/components';
 import Timer from './Timer';
+import TagReads from './TagReads';
 
 type Props = {};
 
@@ -50,12 +51,7 @@ function RaceDashBoard(props: Props) {
       <Grid gridDefinition={[{ colspan: 4 }, { colspan: 8 }]}>
         <div>
           <Timer />
-          <Container header={<Header variant="h2">Leaderboard</Header>}>
-            Container content
-          </Container>
-          <Container header={<Header variant="h2">Recent Reads</Header>}>
-            Container content
-          </Container>
+          <TagReads />
         </div>
 
         <Table
@@ -137,6 +133,45 @@ function RaceDashBoard(props: Props) {
               },
             },
             {
+              id: 'Team',
+              header: 'Team',
+              cell: (e) => e.Team,
+              sortingField: 'Team',
+              editConfig: {
+                ariaLabel: 'Team',
+                editIconAriaLabel: 'editable',
+                errorIconAriaLabel: 'Team Error',
+                // eslint-disable-next-line react/no-unstable-nested-components
+                editingCell: handleCellEdit,
+              },
+            },
+            {
+              id: 'Tag1',
+              header: 'Tag1',
+              cell: (e) => e.Tags[0],
+              sortingField: 'Tag1',
+              editConfig: {
+                ariaLabel: 'Tag1',
+                editIconAriaLabel: 'editable',
+                errorIconAriaLabel: 'Tag1 Error',
+                // eslint-disable-next-line react/no-unstable-nested-components
+                editingCell: handleCellEdit,
+              },
+            },
+            {
+              id: 'Tag2',
+              header: 'Tag2',
+              cell: (e) => e.Tags[1],
+              sortingField: 'BibNumber',
+              editConfig: {
+                ariaLabel: 'Tag2',
+                editIconAriaLabel: 'editable',
+                errorIconAriaLabel: 'Tag2 Error',
+                // eslint-disable-next-line react/no-unstable-nested-components
+                editingCell: handleCellEdit,
+              },
+            },
+            {
               id: 'startTime',
               header: 'Start Time',
               cell: (e) => e.startTime,
@@ -169,6 +204,10 @@ function RaceDashBoard(props: Props) {
             'NameLast',
             'BibNumber',
             'time',
+            'Team',
+            'Tags',
+            'Tag1',
+            'Tag2',
             'startTime',
             'finishTime',
           ]}

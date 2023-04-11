@@ -10,12 +10,13 @@
  */
 import * as fs from 'fs';
 import path from 'path';
-import electron, { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import express from 'express';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
+import e from 'express';
 
 let raceFilePath: string = '';
 let mainWindow: BrowserWindow | null = null;
@@ -27,7 +28,7 @@ const port = 3000;
 
 reader.use(express.json());
 reader.use(express.urlencoded());
-//reader.use(xmlparser());
+reader.use(xmlparser());
 
 setTimeout(() => {
   reader.listen(port, () => {
@@ -35,51 +36,171 @@ setTimeout(() => {
   });
 }, 5000);
 
+function convertTagTimeToDate(tagTime: any): Date {
+  const splitTimes = tagTime.split(/\/|\s|:|\./);
+  const date = new Date(
+    splitTimes[0],
+    splitTimes[1] - 1,
+    splitTimes[2],
+    splitTimes[3],
+    splitTimes[4],
+    splitTimes[5],
+    splitTimes[6]
+  );
+  //console.log(splitTimes)
+  return date;
+}
+
 reader.post('/api', (req, res) => {
-  console.log(req.body.tagid);
-  //const tagRead = JSON.parse(req.body);
-  if (raceFilePath !== '') {
+  if (
+    raceFilePath !== '' &&
+    req.body['alien-rfid-reader-auto-notification'][
+      'alien-rfid-tag-list'
+    ][0] !== '\r\n'
+  ) {
     fs.readFile(raceFilePath, 'utf8', (err, data) => {
-      const raceData = JSON.parse(data);
-      raceData?.Participants.forEach((el: any) => {
-        el.Tags.forEach((tag: string) => {
-          // eslint-disable-next-line
-          if (tag == req.body.tagid) {
-            console.log('found');
-            el.TagReads.push({ Tag: tag, Time: new Date() }); // you will need to add the tag read time here and do a converstion
-          }
-        });
-      });
-      fs.writeFile(raceFilePath, JSON.stringify(raceData), 'utf-8', (error) => {
-        if (error) {
-          console.log(error);
-        } else {
-          fs.readFile(raceFilePath, 'utf8', (errror, newData) => {
-            mainWindow?.webContents.send('json-loaded', newData);
-            ipcMain.emit('json-loaded', newData);
+      let raceData;
+      try {
+        raceData = JSON.parse(data);
+      } catch {
+        // eslint-disable-next-line no-unused-expressions
+        null;
+      }
+      if (raceData !== undefined) {
+        req.body['alien-rfid-reader-auto-notification'][
+          'alien-rfid-tag-list'
+        ].forEach((tagRead: any) => {
+          // console.log(tagRead);
+          tagRead['alien-rfid-tag'].forEach((tagReadInfo: any) => {
+            console.log(tagReadInfo?.tagid[0]);
+            let foundRunner = false;
+            let runnerName = 'Runner not found';
+            let bib = '0';
+            // console.log(tagReadInfo.discoverytime[0]);
+            raceData?.Participants.forEach((el: any) => {
+              el.Tags.forEach((tag: string) => {
+                // eslint-disable-next-line
+                if (tag === tagReadInfo?.tagid[0]) {
+                  console.log(`found ${el?.NameFirst}`);
+                  foundRunner = true;
+                  bib = el?.BibNumber;
+                  runnerName = el?.NameFirst;
+                  el.TagReads.push({
+                    Tag: tag,
+                    Time: convertTagTimeToDate(tagReadInfo?.discoverytime[0]),
+                  });
+                }
+              });
+            });
+            if (!foundRunner) {
+              mainWindow?.webContents.send('tagRead', [
+                runnerName,
+                bib,
+                tagReadInfo.tagid[0],
+                convertTagTimeToDate(tagReadInfo.discoverytime[0]),
+              ]);
+            } else {
+              mainWindow?.webContents.send('tagRead', [
+                runnerName,
+                bib,
+                tagReadInfo.tagid[0],
+                convertTagTimeToDate(tagReadInfo.discoverytime[0]),
+              ]);
+            }
           });
-          console.log('Tag read written successfully');
-        }
-      });
+        });
+        raceData?.Participants.forEach((obj: any) => {
+          obj.TagReads = obj?.TagReads.filter(
+            (value: any, index: any, self: any) =>
+              index ===
+              self.findIndex(
+                (t: any) => t.Tag === value.Tag && t.Time === value.Time
+              )
+          );
+        });
+
+        fs.writeFile(
+          raceFilePath,
+          JSON.stringify(raceData),
+          'utf-8',
+          (error) => {
+            if (error) {
+              console.log(error);
+            } else {
+              fs.readFile(raceFilePath, 'utf8', (errror, newData) => {
+                mainWindow?.webContents.send('json-loaded', newData);
+                ipcMain.emit('json-loaded', newData);
+              });
+              console.log('Tag read written successfully');
+              fs.readFile(raceFilePath, 'utf8', (err, data) => {
+                const now = Date.now();
+                const raceData = JSON.parse(data);
+                raceData.Participants.forEach((el) => {
+                  if (el.TagReads.length === 0) {
+                    console.log(`no reads for ${el.NameFirst}`);
+                    el.time = 'DNF';
+                  } else {
+                    const firstReadDate = new Date(el?.TagReads[0]?.Time);
+                    const startTimeDate = new Date(el?.startTime);
+                    const diffInMille = firstReadDate - startTimeDate;
+                    el.time = `${(
+                      '0' + Math.floor((diffInMille / 600000) % 60)
+                    ).slice(-2)}:${(
+                      '0' + Math.floor((diffInMille / 60000) % 60)
+                    ).slice(-2)}:${(
+                      '0' + Math.floor((diffInMille / 1000) % 60)
+                    ).slice(-2)}:${('' + (diffInMille % 1000)).slice(0, 2)}`;
+                  }
+                });
+                fs.writeFile(
+                  raceFilePath,
+                  JSON.stringify(raceData),
+                  'utf-8',
+                  (error) => {
+                    if (error) {
+                      console.error(error);
+                    } else {
+                      fs.readFile(raceFilePath, 'utf8', (errror, newData) => {
+                        mainWindow?.webContents.send('json-loaded', newData);
+                        ipcMain.emit('json-loaded', newData);
+                      });
+                      console.log('Calculated Time successfully');
+                    }
+                  }
+                );
+              });
+            }
+          }
+        );
+      }
     });
     res.status(200);
     res.send(req.body);
   } else {
     console.log('dont plug in the reader yet');
+    res.status(200);
+    res.send(req.body);
   }
 
-  /*
-  req.body['alien-rfid-reader-auto-notification'][
-    'alien-rfid-tag-list'
-  ].forEach((el) => {
-    el['alien-rfid-tag'].forEach((tag) => {
-      console.log(tag.tagid[0]);
-      console.log(tag.discoverytime[0]);
-    });
-  });
-  res.status(200);
-  res.send('POST request received');
-  */
+  // if (
+  //   req.body['alien-rfid-reader-auto-notification'][
+  //     'alien-rfid-tag-list'
+  //   ][0] !== '\r\n'
+  // ) {
+  //   req.body['alien-rfid-reader-auto-notification'][
+  //     'alien-rfid-tag-list'
+  //   ].forEach((el) => {
+  //     el['alien-rfid-tag'].forEach((tag) => {
+  //       console.log(tag.tagid[0]);
+  //       console.log(typeof tag.discoverytime[0]);
+  //       // eslint-disable-next-line no-new-wrappers
+  //       console.log(convertTagTimeToDate(new String(tag.discoverytime)));
+  //       console.log(tag.discoverytime[0]);
+  //     });
+  //   });
+  // }
+  // res.status(200);
+  // res.send('POST request received');
 });
 
 class AppUpdater {
@@ -94,6 +215,62 @@ ipcMain.on('ipc-example', async (event, arg) => {
   const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
   console.log(msgTemplate(arg));
   event.reply('ipc-example', msgTemplate('pong'));
+});
+
+ipcMain.on('start-participants', async (event, arg) => {
+  fs.readFile(raceFilePath, 'utf8', (err, data) => {
+    const now = Date.now();
+    const raceData = JSON.parse(data);
+    raceData.Participants.forEach((el) => {
+      el.startTime = now;
+      el.TagReads = [];
+      el.time = 'DNF';
+    });
+    fs.writeFile(raceFilePath, JSON.stringify(raceData), 'utf-8', (error) => {
+      if (error) {
+        console.error(error);
+      } else {
+        fs.readFile(raceFilePath, 'utf8', (errror, newData) => {
+          mainWindow?.webContents.send('json-loaded', newData);
+          ipcMain.emit('json-loaded', newData);
+        });
+        console.log('Race Started Sucessfully');
+      }
+    });
+  });
+});
+
+ipcMain.on('calculate-time', () => {
+  fs.readFile(raceFilePath, 'utf8', (err, data) => {
+    const now = Date.now();
+    const raceData = JSON.parse(data);
+    raceData.Participants.forEach((el) => {
+      if (el.TagReads.length === 0) {
+        console.log(`no reads for ${el.NameFirst}`);
+        el.time = 'DNF';
+      } else {
+        const firstReadDate = new Date(el?.TagReads[0]?.Time);
+        const startTimeDate = new Date(el?.startTime);
+        const diffInMille = firstReadDate - startTimeDate;
+        el.time = `${('0' + Math.floor((diffInMille / 600000) % 60)).slice(
+          -2
+        )}:${('0' + Math.floor((diffInMille / 60000) % 60)).slice(-2)}:${(
+          '0' + Math.floor((diffInMille / 1000) % 60)
+        ).slice(-2)}:${('' + (diffInMille % 1000)).slice(0, 2)}`;
+      }
+    });
+    fs.writeFile(raceFilePath, JSON.stringify(raceData), 'utf-8', (error) => {
+      if (error) {
+        console.error(error);
+      } else {
+        fs.readFile(raceFilePath, 'utf8', (errror, newData) => {
+          mainWindow?.webContents.send('json-loaded', newData);
+          ipcMain.emit('json-loaded', newData);
+        });
+        console.log('Calculated Time successfully');
+      }
+    });
+  });
 });
 
 ipcMain.on('load-json', (event, arg) => {
@@ -122,6 +299,7 @@ ipcMain.on('add-participant', (event, arg) => {
       Other: 'Other info',
       Tags: ['Tag1', 'Tag2'],
       BibNumber: '1000',
+      Team: '',
       TagReads: [],
       startTime: '',
       finishTime: '',
@@ -148,17 +326,21 @@ ipcMain.on('edit-participants', (event, arg) => {
 
   const reply = (msg: string) => msg;
   fs.readFile(raceFilePath, 'utf8', (err, data) => {
-    //console.log('edit-participants');
+    // console.log('edit-participants');
     const jsonData = JSON.parse(data);
-    //console.log(jsonData?.Participants);
+    // console.log(jsonData?.Participants);
     const itemInFileIdx = jsonData?.Participants?.findIndex(
       (Participant) => Participant?.BibNumber === item?.BibNumber
     );
-    console.log(itemInFileIdx);
+    // This code is shit really but I pretty much need this working in like 2 hours
+    if (property !== 'Tag1' && property !== 'Tag2') {
+      jsonData.Participants[itemInFileIdx][property] = value;
+    } else if (property === 'Tag1') {
+      jsonData.Participants[itemInFileIdx].Tags[0] = value;
+    } else if (property === 'Tag2') {
+      jsonData.Participants[itemInFileIdx].Tags[1] = value;
+    }
 
-    jsonData.Participants[itemInFileIdx][property] = value;
-
-    console.log(jsonData?.Participants[itemInFileIdx][property]);
     fs.writeFile(raceFilePath, JSON.stringify(jsonData), 'utf-8', (error) => {
       if (error) {
         console.log(error);
@@ -169,10 +351,6 @@ ipcMain.on('edit-participants', (event, arg) => {
         });
       }
     });
-    //jsonData?.Participants[itemInFileIdx].arg[2] = arg[1];
-    //jsonData.participants[itemInFileIdx] = ;
-
-    //fs.writeFile(raceFilePath, arg, (err) => {});
   });
 });
 

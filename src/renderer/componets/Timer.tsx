@@ -21,7 +21,7 @@ export default function Timer({}: Props) {
             <span>
               {('0' + Math.floor((timer.elapsedTime / 1000) % 60)).slice(-2)}:
             </span>
-            <span>{('0' + ((timer.elapsedTime / 1000) % 100)).slice(-2)}</span>
+            <span>{(""+((timer.elapsedTime % 1000) )).slice(0, 2)}</span>
           </div>
         </Header>
       }
@@ -30,6 +30,7 @@ export default function Timer({}: Props) {
         <Button
           onClick={() => {
             timer.handleStart();
+            window.electron.ipcRenderer.sendMessage('start-participants', [])
           }}
         >
           Start
@@ -37,6 +38,7 @@ export default function Timer({}: Props) {
         <Button
           onClick={() => {
             timer.handlePause();
+            window.electron.ipcRenderer.sendMessage('calculate-time', [])
           }}
         >
           Stop
