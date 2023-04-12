@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -24,12 +24,16 @@ function RaceLoader(props: Props) {
     setModalVisible(true);
   };
 
-  const loadRace = (Event: any) => {
-    Event.preventDefault();
-    window.electron.ipcRenderer.sendMessage('load-json', []);
+  useEffect(() => {
     window.electron.ipcRenderer.on('json-loaded', (arg: string) => {
       setRaceData(JSON.parse(arg));
     });
+  }, []);
+
+  const loadRace = (Event: any) => {
+    Event.preventDefault();
+    window.electron.ipcRenderer.sendMessage('load-json', []);
+
   };
 
   const handleFormSubmit = (e) => {
